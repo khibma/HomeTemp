@@ -6,10 +6,33 @@ from .AdafruitLibs.Adafruit_I2C import Adafruit_I2C
 from .AdafruitLibs.Adafruit_7Segment import SevenSegment
 from .AdafruitLibs.Adafruit_BMP085 import BMP085
 
-GPIO.setmode(GPIO.BCM)
 
-#for the display
-segment = SevenSegment(address=0x70)
+def display(txt, colon = false):
+
+    if txt == "time":
+        now = datetime.datetime.now()
+        _1 = int(now.hour / 10)
+        _2 = now.hour % 10
+        _3 = int(now.minute / 10)
+        _4 = now.minute % 10
+        segment.setColon(1)
+    else:
+        _1 = txt[0:1]
+        _2 = txt[1:2]
+        _3 = txt[2:3]
+        _4 = txt[3:4]
+
+
+    segment.writeDigit(0, _1)
+    segment.writeDigit(1, _2)
+    segment.writeDigit(3, _3)
+    segment.writeDigit(4, _4)
+
+    # Toggle colon
+    if colon:
+        segment.setColon(1)
+    else:
+        segment.setColon(0)
 
 
 def countdown(n):
@@ -21,21 +44,20 @@ def countdown(n):
 
 
 def clock():
-    while(True):
-      now = datetime.datetime.now()
-      hour = now.hour
-      minute = now.minute
-      second = now.second
-      # Set hours
-      segment.writeDigit(0, int(hour / 10))     # Tens
-      segment.writeDigit(1, hour % 10)          # Ones
-      # Set minutes
-      segment.writeDigit(3, int(minute / 10))   # Tens
-      segment.writeDigit(4, minute % 10)        # Ones
-      # Toggle color
-      segment.setColon(second % 2)              # Toggle colon at 1Hz
-      # Wait one second
-      time.sleep(1)
+    #not used
+    now = datetime.datetime.now()
+    hour = now.hour
+    minute = now.minute
+    second = now.second
+    # Set hours
+    segment.writeDigit(0, int(hour / 10))     # Tens
+    segment.writeDigit(1, hour % 10)          # Ones
+    # Set minutes
+    segment.writeDigit(3, int(minute / 10))   # Tens
+    segment.writeDigit(4, minute % 10)        # Ones
+    # Toggle color
+    segment.setColon(second % 2)              # Toggle colon at 1Hz
+
 
 def DHT22():
     os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 #")  #update pin #
@@ -77,16 +99,26 @@ def readButton(pin):
 
 if __name__ == '__main__':
 
+    GPIO.setmode(GPIO.BCM)
+
+    #for the display
+    segment = SevenSegment(address=0x70)
+
+    bmp = BMP085(0x77)
 
     while True:
 
-        getTemp()
-        time.sleep(4)
-        getHumidity()
-        time.sleep(4)
-        getPressure()
+        display(bmp.readTemperature(), False)
         time.sleep(4)
 
+        humidity = os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 #")
+        time.sleep(4)
+
+        display(bmp.readPressure(), False)
+        time.sleep(4)
+
+        display("time", True)
+        time.sleep(10)
 
         if but1 == True and but2 == True:
             import sys
