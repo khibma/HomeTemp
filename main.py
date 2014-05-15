@@ -7,7 +7,7 @@ from .AdafruitLibs.Adafruit_7Segment import SevenSegment
 from .AdafruitLibs.Adafruit_BMP085 import BMP085
 
 
-def display(txt, colon = false):
+def display(txt, colon=False):
 
     if txt == "time":
         now = datetime.datetime.now()
@@ -17,10 +17,10 @@ def display(txt, colon = false):
         _4 = now.minute % 10
         segment.setColon(1)
     else:
-        _1 = txt[0:1]
-        _2 = txt[1:2]
-        _3 = txt[2:3]
-        _4 = txt[3:4]
+        _1 = txt[0]
+        _2 = txt[1]
+        _3 = txt[2]
+        _4 = txt[3]
 
 
     segment.writeDigit(0, _1)
@@ -35,13 +35,14 @@ def display(txt, colon = false):
         segment.setColon(0)
 
 
-def countdown(n):
-     while n > 0:
+def countdown(i):
+        
+    while(i!=-1):
+        display(map(int, str(i).zfill(3)) )
+        # Toggle color
         time.sleep(1)
-        print (n)
-        n = n-1
-     print("0000")
-
+        i-=1
+     
 
 def clock():
     #not used
@@ -60,7 +61,7 @@ def clock():
 
 
 def DHT22():
-    os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 #")  #update pin #
+    os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 25")  #update pin # at the end
 
 
 def bmpSensor():
@@ -98,23 +99,35 @@ def readButton(pin):
         print("button was pushed")
 
 if __name__ == '__main__':
-
+    
+    but1pin = 22  #change button pin
+    but1pin = 24  #change button pin
     GPIO.setmode(GPIO.BCM)
-
+    GPIO.setup(but1pin, GPIO.IN) 
+    but1 = GPIO.input(but1pin)
+    GPIO.setup(but2pin, GPIO.IN) 
+    but2 = GPIO.input(but2pin)    
+    
     #for the display
     segment = SevenSegment(address=0x70)
 
     bmp = BMP085(0x77)
 
     while True:
-
-        display(bmp.readTemperature(), False)
+        
+        temp = str(bmp.readTemperature())
+        if "." in temp:
+            temp = temp.replace(".", "")
+        templst = [int(i) for i in temp.zfill(4)]
+        display(templst, False)        
         time.sleep(4)
 
-        humidity = os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 #")
+        humidity = os.system("sudo AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 25")  #update the pin # at the end
         time.sleep(4)
 
-        display(bmp.readPressure(), False)
+        bmp = bmp.readPressure()
+        bmplst = [int(i) for i in str(bmp)]
+        display(bmplst, False)
         time.sleep(4)
 
         display("time", True)
