@@ -2,9 +2,11 @@ import RPi.GPIO as GPIO
 import os
 import time
 import datetime
-from .AdafruitLibs.Adafruit_I2C import Adafruit_I2C
-from .AdafruitLibs.Adafruit_7Segment import SevenSegment
-from .AdafruitLibs.Adafruit_BMP085 import BMP085
+import subprocess
+import re
+from AdafruitLibs.Adafruit_I2C import Adafruit_I2C
+from AdafruitLibs.Adafruit_7Segment import SevenSegment
+from AdafruitLibs.Adafruit_BMP085 import BMP085
 
 
 def display(txt, colon=False):
@@ -36,13 +38,13 @@ def display(txt, colon=False):
 
 
 def countdown(i):
-        
+
     while(i!=-1):
         display(map(int, str(i).zfill(3)) )
         # Toggle color
         time.sleep(1)
         i-=1
-     
+
 
 def clock():
     #not used
@@ -61,8 +63,22 @@ def clock():
 
 
 def DHT22():
-    os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 25")  #update pin # at the end
+    #os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 25")  #update pin # at the end
 
+    print "everything here inside DHT22"
+    output = subprocess.check_output(["./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT", "22", "25"]);
+    print output
+    matches = re.search("Temp =\s+([0-9.]+)", output)
+    temp = float(matches.group(1))
+
+    # search for humidity printout
+    matches = re.search("Hum =\s+([0-9.]+)", output)
+    humidity = float(matches.group(1))
+
+
+    print "Temperature: %.1f C" % temp
+    print "Humidity:    %.1f %%" % humidity
+    return humidity
 
 def bmpSensor():
 
@@ -99,30 +115,35 @@ def readButton(pin):
         print("button was pushed")
 
 if __name__ == '__main__':
-    
+
     but1pin = 22  #change button pin
     but1pin = 24  #change button pin
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(but1pin, GPIO.IN) 
+    GPIO.setup(but1pin, GPIO.IN)
     but1 = GPIO.input(but1pin)
-    GPIO.setup(but2pin, GPIO.IN) 
-    but2 = GPIO.input(but2pin)    
-    
+    #GPIO.setup(but2pin, GPIO.IN)
+    #but2 = GPIO.input(but2pin)
+
     #for the display
     segment = SevenSegment(address=0x70)
 
     bmp = BMP085(0x77)
 
     while True:
-        
+
         temp = str(bmp.readTemperature())
         if "." in temp:
             temp = temp.replace(".", "")
         templst = [int(i) for i in temp.zfill(4)]
-        display(templst, False)        
+        display(templst, False)
         time.sleep(4)
 
-        humidity = os.system("sudo AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 25")  #update the pin # at the end
+        #sudo chmod +x Adafruit_DHT
+        rawHum = str(DHT22())
+        if "." in rawHum:
+            rawHum = rawHum.replace(".", "")
+        humlst = [int(i) for i in rawHum.zfill(4)]
+        display(humlst)
         time.sleep(4)
 
         bmp = bmp.readPressure()
@@ -133,6 +154,8 @@ if __name__ == '__main__':
         display("time", True)
         time.sleep(10)
 
+        #temp hack till i have 2 buttons installed
+        but2 = True
         if but1 == True and but2 == True:
             import sys
             sys.exit()
