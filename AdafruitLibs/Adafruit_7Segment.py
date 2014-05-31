@@ -13,7 +13,7 @@ from Adafruit_LEDBackpack import LEDBackpack
 
 class SevenSegment:
   disp = None
- 
+
   # Hexadecimal character lookup table (row 1 = 0..9, row 2 = A..F)
   digits = [ 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, \
              0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71 ]
@@ -23,6 +23,12 @@ class SevenSegment:
     if (debug):
       print "Initializing a new instance of LEDBackpack at 0x%02X" % address
     self.disp = LEDBackpack(address=address, debug=debug)
+
+  def clear(self):
+    self.disp.clear()
+
+  def setBrightness(self, bright):
+    self.setBrightness(bright)
 
   def writeDigitRaw(self, charNumber, value):
     "Sets a digit using the raw 16-bit value"

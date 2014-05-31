@@ -1,5 +1,6 @@
 import RPi.GPIO as GPIO
 import os
+import sys
 import time
 import datetime
 import subprocess
@@ -8,79 +9,137 @@ from AdafruitLibs.Adafruit_I2C import Adafruit_I2C
 from AdafruitLibs.Adafruit_7Segment import SevenSegment
 from AdafruitLibs.Adafruit_BMP085 import BMP085
 
+class SensorValues(object):
+
+    def __init__(self, bmp, DHTPIN, BUT1PIN, BUT2PIN):
+        self.bmp = bmp
+        self.temp = self.getTemp()
+        self.humidity = self.getHum(DHTPIN)
+        self.pressure = self.getPressure()
+
+    def getTemp(self):
+        temp = str(self.bmp.readTemperature())
+        print "temp:   {}".format(temp)
+        return temp
+
+    def getHum(self, DHTPIN):
+        while True:
+            try:
+                output = subprocess.check_output(["./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT", "22", DHTPIN]);
+                matches = re.search("Hum =\s+([0-9.]+)", output)
+                humidity = str(float(matches.group(1)))
+                print "humidity    {}".format(humidity)
+                return humidity
+            except:
+                time.sleep(1)
+
+    def getPressure(self):
+        pressure = self.bmp.readPressure()
+        print "pressure    {}".format(pressure)
+        return pressure
 
 def display(txt, colon=False):
 
-    if txt == "time":
-        now = datetime.datetime.now()
-        _1 = int(now.hour / 10)
-        _2 = now.hour % 10
-        _3 = int(now.minute / 10)
-        _4 = now.minute % 10
-        segment.setColon(1)
+    segment.setColon(False)
+    # If colon, displaying time..
+    if colon == True:
+        digits = []
+        digits.append(int(txt.hour / 10))
+        digits.append(txt.hour % 10)
+        digits.append(int(txt.minute / 10))
+        digits.append(txt.minute % 10)
+        dotIdx = 0
+        segment.setColon(True)
     else:
-        _1 = txt[0]
-        _2 = txt[1]
-        _3 = txt[2]
-        _4 = txt[3]
+        dotIdx = txt.find('.')-1
+        if dotIdx > 0:
+            txt = txt.replace(".", "")
 
+        digits = list(txt)
+        segment.setColon(False)
+        print digits
 
-    segment.writeDigit(0, _1)
-    segment.writeDigit(1, _2)
-    segment.writeDigit(3, _3)
-    segment.writeDigit(4, _4)
+        #templst = [int(i) for i in temp.zfill(4)]
+    digits.insert(2,0) #colon is postion 2, so insert a dummy value
+    if dotIdx >=2:
+        dotIdx+=1
 
-    # Toggle colon
-    if colon:
-        segment.setColon(1)
-    else:
-        segment.setColon(0)
+    for i in range(0,5):
+        if i == 2:
+            continue
+
+        dot = False
+        if dotIdx >0:
+            if i == dotIdx:
+                dot = True
+        print "insert at: {}  value: {} ".format(i, digits[i])
+
+        if digits[i] == 'c':
+            segment.writeDigitRaw(i, 99)
+        elif digits[i] == 'h':
+            segment.writeDigitRaw(i, 116)
+        else:
+            segment.writeDigit(i, int(digits[i]), dot)
+            print dot
 
 
 def countdown(i):
 
     while(i!=-1):
         display(map(int, str(i).zfill(3)) )
-        # Toggle color
         time.sleep(1)
         i-=1
 
 
-def clock():
-    #not used
-    now = datetime.datetime.now()
-    hour = now.hour
-    minute = now.minute
-    second = now.second
-    # Set hours
-    segment.writeDigit(0, int(hour / 10))     # Tens
-    segment.writeDigit(1, hour % 10)          # Ones
-    # Set minutes
-    segment.writeDigit(3, int(minute / 10))   # Tens
-    segment.writeDigit(4, minute % 10)        # Ones
-    # Toggle color
-    segment.setColon(second % 2)              # Toggle colon at 1Hz
+def readButton(pin):
+    GPIO.setup(pin, GPIO.IN)
+    if (GPIO.input(pin) == False):
+        print("button was pushed")
+
+if __name__ == '__main__':
+
+    #Setup
+    bmp = BMP085(0x77)
+    DHTPIN = "25"
+    BUT1PIN = 22
+    BUT2PIN = 24
+
+    #Init the display
+    segment = SevenSegment(address=0x70)
+
+    #Ready the sensors
+    sensor = SensorValues(bmp, DHTPIN, BUT1PIN, BUT2PIN)
+
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(BUT1PIN, GPIO.IN)
+    but1 = GPIO.input(BUT1PIN)
+    #GPIO.setup(BUT2PIN, GPIO.IN)
+    #but2 = GPIO.input(BUT2PIN)
+
+    while True:
+
+        display(str(sensor.temp)+'c', False)
+        time.sleep(4)
+
+        display(str(sensor.humidity)+'h', False)
+        time.sleep(4)
+
+        display(str(sensor.pressure), False)
+        time.sleep(4)
+
+        display(datetime.datetime.now(), True)
+        time.sleep(6)
+
+        #temp hack till i have 2 buttons installed
+        but2 = False
+        if but1 == True and but2 == True:
+            sys.exit()
 
 
-def DHT22():
-    #os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 25")  #update pin # at the end
-
-    print "everything here inside DHT22"
-    output = subprocess.check_output(["./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT", "22", "25"]);
-    print output
-    matches = re.search("Temp =\s+([0-9.]+)", output)
-    temp = float(matches.group(1))
-
-    # search for humidity printout
-    matches = re.search("Hum =\s+([0-9.]+)", output)
-    humidity = float(matches.group(1))
 
 
-    print "Temperature: %.1f C" % temp
-    print "Humidity:    %.1f %%" % humidity
-    return humidity
-
-def bmpSensor():
+'''NOT USED'''
+def _bmpSensor():
 
     bmp = BMP085(0x77)
 
@@ -109,53 +168,36 @@ def bmpSensor():
     print ("Altitude:    {0:2}").format(altitude)
 
 
-def readButton(pin):
-    GPIO.setup(pin, GPIO.IN)
-    if (GPIO.input(pin) == False):
-        print("button was pushed")
+def clock():
+    #not used
+    now = datetime.datetime.now()
+    hour = now.hour
+    minute = now.minute
+    second = now.second
+    # Set hours
+    segment.writeDigit(0, int(hour / 10))     # Tens
+    segment.writeDigit(1, hour % 10)          # Ones
+    # Set minutes
+    segment.writeDigit(3, int(minute / 10))   # Tens
+    segment.writeDigit(4, minute % 10)        # Ones
+    # Toggle color
+    segment.setColon(second % 2)              # Toggle colon at 1Hz
 
-if __name__ == '__main__':
 
-    but1pin = 22  #change button pin
-    but1pin = 24  #change button pin
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(but1pin, GPIO.IN)
-    but1 = GPIO.input(but1pin)
-    #GPIO.setup(but2pin, GPIO.IN)
-    #but2 = GPIO.input(but2pin)
+def _DHT22():
+    #os.command("sudo ./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT 22 25")  #update pin # at the end
 
-    #for the display
-    segment = SevenSegment(address=0x70)
+    print "everything here inside DHT22"
+    output = subprocess.check_output(["./AdafruitLibs/Adafruit_DHT_Driver/Adafruit_DHT", "22", "25"]);
+    print output
+    matches = re.search("Temp =\s+([0-9.]+)", output)
+    temp = float(matches.group(1))
 
-    bmp = BMP085(0x77)
+    # search for humidity printout
+    matches = re.search("Hum =\s+([0-9.]+)", output)
+    humidity = float(matches.group(1))
 
-    while True:
 
-        temp = str(bmp.readTemperature())
-        if "." in temp:
-            temp = temp.replace(".", "")
-        templst = [int(i) for i in temp.zfill(4)]
-        display(templst, False)
-        time.sleep(4)
-
-        #sudo chmod +x Adafruit_DHT
-        rawHum = str(DHT22())
-        if "." in rawHum:
-            rawHum = rawHum.replace(".", "")
-        humlst = [int(i) for i in rawHum.zfill(4)]
-        display(humlst)
-        time.sleep(4)
-
-        bmp = bmp.readPressure()
-        bmplst = [int(i) for i in str(bmp)]
-        display(bmplst, False)
-        time.sleep(4)
-
-        display("time", True)
-        time.sleep(10)
-
-        #temp hack till i have 2 buttons installed
-        but2 = True
-        if but1 == True and but2 == True:
-            import sys
-            sys.exit()
+    print "Temperature: %.1f C" % temp
+    print "Humidity:    %.1f %%" % humidity
+    return humidity
