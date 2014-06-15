@@ -123,44 +123,50 @@ def countdown(i):
         time.sleep(1)
         i-=1
 
+def but1_callback(channel):
+    print "button was pushed"
 
-def readButton(pin):
-    GPIO.setup(pin, GPIO.IN)
-    if (GPIO.input(pin) == False):
-        print("button was pushed")
-
+def LED(pin, status):
+    GPIO.output(pin, status)
 
 
 if __name__ == '__main__':
 
     #PIN VALUES
     DHTPIN = "25"
-    BUT1PIN = 22
-    BUT2PIN = 24
+    BUT1PIN = 17
+    BUT2PIN = 999
     BRIGHTPIN = 1
+    OUTSIDEPIN = 24
+    NEGATIVEPIN = 999
+    OFFPIN = 22
 
     #Init the display
     segment = SevenSegment(address=0x70)
     segment.setBrightness(15)
 
+    GPIO.setmode(GPIO.BCM)
+
+    #Init buttons and set the callback
+    GPIO.setup(BUT1PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.add_event_detect(BUT1PIN, GPIO.FALLING, callback = but1_callback, bouncetime=300)
+
+    #Init LEDs and shutdown switch
+    GPIO.setup(OUTSIDEPIN, GPIO.OUT)
+    #GPIO.setup(NEGATIVEPIN, GPIO.OUT)
+    GPIO.setup(OFFPIN, GPIO.IN)
+
     #Ready the sensors
     sensor = SensorValues(DHTPIN, BRIGHTPIN, BUT1PIN, BUT2PIN)
-    GPIO.setmode(GPIO.BCM)
 
     currentBrightness = 1
-    wundergroundAPIKey = 'xxxxxxx'
+    wundergroundAPIKey = 'xxxxx'
 
-    '''
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(BUT1PIN, GPIO.IN)
-    but1 = GPIO.input(BUT1PIN)
-    #GPIO.setup(BUT2PIN, GPIO.IN)
-    #but2 = GPIO.input(BUT2PIN)
-    '''
     outsideWeather = weather.getWeather(wundergroundAPIKey)
     weatherTime = time.time()
 
-    while True:
+    Loop = True
+    while Loop:
 
         #Every 5 minutes update the outside weather conditions
         now = time.time()
@@ -168,17 +174,29 @@ if __name__ == '__main__':
             weatherTime = now
             outsideWeather = weather.getWeather(wundergroundAPIKey)
 
-        display(str(sensor.getTemp())+'c', False)
+        insideTemp = str(sensor.getTemp())+'c'
+        display(insideTemp , False)
+        #if "-" in insideTemp :
+        #    LED(NEGATIVEPIN, True)
         time.sleep(4)
+        #LED(NEGATIVEPIN, False)
 
-        display(str(outsideWeather['tempC'])+'c', False)
+        outsideTemp = str(outsideWeather['tempC'])+'c'
+        display(outsideTemp, False)
+        LED(OUTSIDEPIN, True)
+        #if "-" in outsideTemp:
+        #    LED(NEGATIVEPIN, True)
         time.sleep(4)
+        LED(OUTSIDEPIN, False)
+        #LED(NEGATIVEPIN, False)
 
         display(str(sensor.getHum(DHTPIN))+'h', False)
         time.sleep(4)
 
-        display(str(outsideWeather['humidity'])+'c', False)
+        display(str(outsideWeather['humidity'])+'h', False)
+        LED(OUTSIDEPIN, True)
         time.sleep(4)
+        LED(OUTSIDEPIN, False)
 
         display(str(sensor.getPressure()), False)
         time.sleep(4)
@@ -191,13 +209,13 @@ if __name__ == '__main__':
         currentBrightness = sensor.checkBrightness(BRIGHTPIN)
         setBrightness(segment, currentBrightness)
 
-        #temp hack till i have 2 buttons installed
-        sensor.button_1(BUT1PIN)
-        '''
-        print but1
-        but2 = False
-        if but1 == True and but2 == True:
-            segment.clear()
-            sys.exit()
-        '''
+        #If switched is switched, shutdown the pi
+        print GPIO.input(OFFPIN)
+        if GPIO.input(OFFPIN):
+            Loop = False
+
+    segment.clear()
+    GPIO.cleanup()
+    #os.system("shutdown now")
+
 

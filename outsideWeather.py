@@ -17,5 +17,5 @@ def getWeather(apiKey):
     wJSON = getCurrentConditions(apiKey)
 
     return {"tempC": wJSON['temp_c'],
-            "humidity" : wJSON['relative_humidity'],
+            "humidity" : wJSON['relative_humidity'].replace("%",".0"),
             "feesLikeC" : wJSON['feelslike_c'] }
